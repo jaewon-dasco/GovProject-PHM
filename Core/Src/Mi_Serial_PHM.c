@@ -1,4 +1,9 @@
 /*
+ * Mi_Serial_PHM.c
+ *
+ *  Version: 0.1 (2026-06-29)
+ */
+/*
  * Mi_Serial_PHM.c — PHM 제품 전용 오버라이드
  *
  *  공통 Mi_Serial.c 가 제공하지 않는 product-specific 함수 + RS485 log 라우팅.
@@ -14,7 +19,20 @@
 #include <string.h>
 #include "Mi_Serial.h"
 
+oSerialHandler_t MiSerial_Handler = {
+	.pTxBuffer = MiSerial_TxBuffer,
+	.SizeOfTxBuffer = MISERIAL_TX_BUFFER_SIZE,
+	.pRxBuffer = MiSerial_RxBuffer,
+	.SizeOfRxBuffer = MISERIAL_RX_BUFFER_SIZE,
+};
+
+uint8_t MiSerial_TxBuffer[MISERIAL_TX_BUFFER_SIZE];
+uint8_t MiSerial_RxBuffer[MISERIAL_RX_BUFFER_SIZE];
+
 extern oResult_t MiSerial_DebugMessage(char *Message);
+
+/* 공통 Mi_Serial.c 가 참조하는 product-specific 변수 stub (PHM 미사용) */
+uint8_t MiSerial_SensorSamplingProgress = 0;
 
 /* ============================================================
  * 공통 Mi_Serial.c 의 MiSerial() 을 __weak 로 정의해서 PHM 가 override.
@@ -93,9 +111,3 @@ void MiSerial_DebugLog(const char *fmt, ...)
 {
 	(void)fmt;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_Serial_PHM.c)
-*/
