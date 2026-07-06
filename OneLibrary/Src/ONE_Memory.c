@@ -1,3 +1,8 @@
+/*
+ * ONE_Memory.c
+ *
+ *  Version: 0.1 (2026-06-29)
+ */
 #include "ONE_Memory.h"
 
 oResult_t oMEM_IsAllZero(uint8_t* pData, uint32_t Size)
@@ -94,9 +99,3 @@ uint32_t oMEM_CRC32(uint8_t *block, uint32_t blockLength, uint32_t crc)
     }
     return crc;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (ONE_Memory.c)
-*/

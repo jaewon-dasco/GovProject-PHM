@@ -1,8 +1,7 @@
 /*
  * ONE_Math.c
  *
- *  Created on: Feb 7, 2025
- *      Author: JONE
+ *  Version: 0.1 (2026-06-29)
  */
 #include "ONE_Math.h"
 
@@ -54,9 +53,3 @@ double oMath_Median3(double a, double b, double c)
 
 	return b;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (ONE_Math.c)
-*/

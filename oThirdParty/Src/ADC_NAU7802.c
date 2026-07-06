@@ -1,8 +1,7 @@
 /*
  * ADC_NAU7802.c
  *
- *  Created on: Jan 27, 2025
- *      Author: JONE
+ *  Version: 0.1 (2026-06-29)
  */
 #include "ONE_Time.h"
 #include "ADC_NAU7802.h"
@@ -597,9 +596,3 @@ oResult_t NAU7802_AnalogOverSampling(NAU7802_t *pDev, uint8_t Channel, NAU7802_S
 	return result;
 }
 #endif
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (ADC_NAU7802.c)
-*/

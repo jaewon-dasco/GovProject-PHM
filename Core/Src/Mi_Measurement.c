@@ -1,6 +1,11 @@
 /*
  * Mi_Measurement.c
  *
+ *  Version: 0.3 (2026-07-03)
+ */
+/*
+ * Mi_Measurement.c
+ *
  *  PHM 측정 — ISM330DHCX 6축 IMU FIFO + EXTI batch 아키텍처.
  *
  *  데이터 흐름 (double-buffer 자동):
@@ -13,7 +18,7 @@
  *    - Accel HPF biquad (float, fc=8Hz, Q=0.707) — 중력·DC 제거
  *    - Vel   HPF biquad (float, fc=2Hz, Q=0.707) — 적분 drift 제거
  *
- *  CMSIS-DSP 미사용 — 자체 radix-2 FFT (float, 1024-pt)
+ *  CMSIS-DSP 미사용 — ONE_FFT (radix-2 DIT, float, 2048-pt)
  *
  *  Created on: 2026-06-23
  *      Author: JONE
@@ -26,41 +31,48 @@
 #include "ONE_Time.h"
 #include "ONE_Math.h"
 #include "ONE_Filter.h"
+#include "ONE_FFT.h"
 #include "ONE_Serial.h"
 #include "Mi_Main.h"
 #include "Mi_IoT.h"
 #include "Mi_Serial.h"
 #include "Mi_Measurement.h"
 #include "MEMS_ISM330DHCXTR.h"
+#include "ONE_Filter.h"
 
 /* ─── 측정 파라미터 ─── */
-#define MEASUREMENT_ODR_HZ				1660
-#define MEASUREMENT_WINDOW_SAMPLES		1660		/* 1 sec window */
-#define MEASUREMENT_FIFO_WATERMARK		256			/* entry — ~154 ms @ 1.66 kHz */
+#define MEASUREMENT_ODR_HZ				1666
+#define MEASUREMENT_WINDOW_SAMPLES		1666		/* 1 sec window @ 1666 Hz */
+#define MEASUREMENT_FIFO_WATERMARK		500			/* entry — ~300 ms @ 1666 Hz (max 511) */
+#define MEASUREMENT_OUTPUT_FFT_DIVIDER	1			/* N 회 FFT 마다 1회 log 출력 (전송 주기 = FFT 주기 × N) */
 #define MEASUREMENT_FIFO_BURST_BYTES	(MEASUREMENT_FIFO_WATERMARK * ISM330DHCX_FIFO_ENTRY_SIZE)
 #define MEASUREMENT_FALLBACK_MS			200			/* IRQ 누락 시 강제 polling 주기 */
 #define MEASUREMENT_PI					3.14159265358979f
 #define MEASUREMENT_DT_SEC				(1.0f / (float)MEASUREMENT_ODR_HZ)
 
-/* ±8 g: 0.244 mg/LSB → g per LSB */
-#define ACCEL_LSB_TO_G					0.244e-3f		/* g 단위 (mg/LSB ÷ 1000) */
+/* ±4 g: 0.122 mg/LSB → g per LSB */
+#define ACCEL_LSB_TO_G					0.122e-3f		/* g 단위 (mg/LSB ÷ 1000) */
+
+/* 임시 게인 보정 — 추후 원인 해결 시 삭제 가능. 삭제 시 이 매크로 정의와
+   Measurement_ProcessSample() 의 ACCEL_GAIN_CORRECTION 곱셈만 제거하면 됨 */
+#define ACCEL_GAIN_CORRECTION			(1.0f / 1.737f)
 #define G_TO_MPSS						9.80665f		/* g → m/s² 환산 (적분 시 사용) */
 
-/* HPF cutoff — ONE_Filter biquad Butterworth */
-#define HPF_ACCEL_FC_HZ					5.0
-#define HPF_VELOCITY_FC_HZ				2.0
-#define HPF_BUTTERWORTH_Q				0.707
+/* SW HPF — ONE_Filter Biquad, cutoff 1 Hz
+   HW HPF 는 OFF, SW HPF 3축 적용 */
+#define SW_HPF_CUTOFF_HZ				1.0f
+#define SW_HPF_Q						0.707f		/* Butterworth flat */
 
 /* ─── FFT ─── */
 #define FFT_SIZE						2048		/* zero-pad to next 2^N (1660 → 2048) */
 #define FFT_SIZE_LOG2					11
 
 /* ─── FFT dominant bin 검색 대역 (brick-wall band masking) ─── */
-#define PEAK_SEARCH_LOW_HZ				5.0f		/* DC 인근 잔존 노이즈 배제 */
-#define PEAK_SEARCH_HIGH_HZ				500.0f		/* Nyquist 근처 노이즈·aliasing 배제 (ISO 10816-3 호환) */
+#define PEAK_SEARCH_LOW_HZ				5.0f		/* 이전 1.0 Hz → 5.0 Hz: 저주파 1/f 속도 증폭으로 인한 PPV 과대평가 억제 */
+#define PEAK_SEARCH_HIGH_HZ				800.0f		/* ODR 1666 Hz, Nyquist 833 Hz 이하 */
 
 /* ─── 신호/노이즈 판별 임계값 (로그 통계 P95~P99 기반) ─── */
-#define MEASUREMENT_PPV_THRESHOLD_MMPS	0.5f		/* 0.5 mm/s 미만 = 노이즈 floor (Zone A 진입 직전) */
+#define MEASUREMENT_PPV_THRESHOLD_MMPS	0.8f		/* 0.8 mm/s 미만 = 노이즈 floor (95 Hz spike 차단) */
 #define MEASUREMENT_PEAK_THRESHOLD_G	0.030f		/* 30 mg 미만 = 노이즈 floor (P99 위) */
 
 /* ─── State machine ─── */
@@ -75,42 +87,33 @@ static MeasurementState_t MeasState = MS_INIT;
 static ISM330DHCX_t MiMems;
 extern oIO_t DO_MEMS_CS;
 
-/* ─── HPF biquad (ONE_Filter, per axis) ─── */
-static oFilter_t HpAccel[3] = {
-	FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, HPF_ACCEL_FC_HZ, HPF_BUTTERWORTH_Q),
-	FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, HPF_ACCEL_FC_HZ, HPF_BUTTERWORTH_Q),
-	FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, HPF_ACCEL_FC_HZ, HPF_BUTTERWORTH_Q),
-};
-static oFilter_t HpVel[3] = {
-	FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, HPF_VELOCITY_FC_HZ, HPF_BUTTERWORTH_Q),
-	FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, HPF_VELOCITY_FC_HZ, HPF_BUTTERWORTH_Q),
-	FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, HPF_VELOCITY_FC_HZ, HPF_BUTTERWORTH_Q),
-};
-
-/* ─── 적분기 ─── */
-static float Velocity[3];	/* m/s */
-
-/* ─── Peak 추적 (max |a| 의 순간 3축 동시 캡처) ─── */
+/* ─── Peak 추적 (max |a| 의 순간 3축 동시 캡처) — HW HPF 후 가속도 기반 ─── */
 static float PeakMag = 0;
 static float PeakAccel[3] = {0, 0, 0};
 
-/* ─── PPV 추적 (per axis velocity min/max) ─── */
-static float VelMin[3] = { 1e30f, 1e30f, 1e30f };
-static float VelMax[3] = { -1e30f, -1e30f, -1e30f };
-
 /* ─── FFT ring buffer (3축 HPF 가속도, 윈도우 크기 = 1660 sample) ─── */
-static float FftInputRing[3][MEASUREMENT_WINDOW_SAMPLES];
-static uint32_t FftInputIdx = 0;
-static uint8_t  FftInputReady = 0;
+static float InputRing[3][MEASUREMENT_WINDOW_SAMPLES];
+static uint32_t InputRingIdx = 0;
+static uint8_t  InputRingReady = 0;
 
-/* ─── FFT (CMSIS-DSP arm_rfft_fast_f32, 2048-pt with zero-padding) ─── */
-static arm_rfft_fast_instance_f32 FftInst;
+/* ─── ODR 자동 보정 — ISM330DHCX RC 오실레이터 ±10 % drift 대응
+       부팅 시 16660 샘플 모이면 SysTick 으로 실측 → ActualOdrHz 갱신 (~10 sec @ 1666 Hz)
+       이후 LPF(α=0.25) 로 온도 드리프트 추적
+       FFT bin / V[k]=A[k]/2πf 모두 이 값을 사용 */
+static volatile float ActualOdrHz   = (float)MEASUREMENT_ODR_HZ;
+static uint8_t        OdrCalibrated = 0;
+
+/* ─── SW HPF 3축 (ONE_Filter Biquad, 2 Hz cutoff) ─── */
+static oFilter_t HpfX = FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, (double)SW_HPF_CUTOFF_HZ, (double)SW_HPF_Q);
+static oFilter_t HpfY = FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, (double)SW_HPF_CUTOFF_HZ, (double)SW_HPF_Q);
+static oFilter_t HpfZ = FILTER_PASS_INITIALIZER((double)MEASUREMENT_ODR_HZ, (double)SW_HPF_CUTOFF_HZ, (double)SW_HPF_Q);
+
+/* ─── FFT (ONE_FFT — 2048-pt real, CMSIS packed 포맷 호환) ─── */
 static float FftInput[FFT_SIZE];				/* 시간 도메인 실수 입력 (zero-pad 적용) */
-static float FftOutput[FFT_SIZE];				/* 주파수 도메인 complex (real/imag interleaved) */
-static float FftMagnitude[FFT_SIZE / 2];		/* magnitude */
-
-/* ─── Window sample counter ─── */
-static uint32_t SampleCount = 0;
+static float FftOutput[FFT_SIZE];				/* 주파수 도메인 packed real: [Re0, Re_N/2, Re1, Im1, ..., Re_N/2-1, Im_N/2-1] */
+static float FftScratch[2 * FFT_SIZE];			/* ONE_FFT 내부 complex 작업 버퍼 (Re/Im interleaved) */
+static float FftTwiddles[FFT_SIZE];				/* N/2 pair of (cos, sin) — 부팅 시 precompute */
+static oFFT_t Fft;
 
 /* ─── FIFO batch buffer ─── */
 static uint8_t FifoBurstBuf[MEASUREMENT_FIFO_BURST_BYTES];
@@ -120,10 +123,14 @@ volatile uint8_t MiMeasurement_FifoIrqFlag = 0;
 
 /* ─── Snapshot ─── */
 typedef struct {
-	float PeakAccel[3];		/* m/s² (HPF 후) */
-	float PPV[3];			/* mm/s peak-to-peak / 2 */
+	float MinAccel[3];		/* g min per axis (윈도우 내 최솟값) */
+	float MaxAccel[3];		/* g max per axis (윈도우 내 최댓값) */
+	float RmsAccel[3];		/* g RMS — ISO 16063 / 10816 */
+	float PPV[3];			/* mm/s peak — DIN 4150-3 / ISO 4866 */
+	float VelRms[3];		/* mm/s RMS — ISO 10816 / 16063 (내부 유지) */
 	float DominantHz[3];	/* 축별 dominant frequency (X, Y, Z) */
 	float Temperature;
+	float PeakAccel[3];		/* 순간 3축 스냅샷 (max |a| 시점, 내부 유지) */
 } MeasurementSnapshot_t;
 
 static MeasurementSnapshot_t Snapshot;
@@ -133,45 +140,92 @@ static uint32_t FallbackTimer = 0;
 
 
 /* ============================================================
- * FFT — CMSIS-DSP arm_rfft_fast_f32 (2048-pt, ~0.4 ms @ 160 MHz)
+ * FFT — ONE_FFT (2048-pt real, packed 포맷)
  *   axis: 0=X, 1=Y, 2=Z
  *   결과 magnitude 최대 bin 의 Hz 반환 (DC 제외)
- *   윈도우 1660 sample → 2048 zero-padding (분해능 0.81 Hz/bin)
+ *   윈도우 1666 sample → 2048 zero-padding
  * ============================================================ */
-static float Measurement_RunFFT(int32_t axis)
+static void Measurement_ComputeAxisStats(int32_t axis, float *outDominantHz, float *outPpvMmps, float *outVelRmsMmps)
 {
 	uint32_t i, src;
-	float maxVal;
-	uint32_t maxIdx = 0;
+	float    maxMag2 = 0;
+	uint32_t maxIdx  = 0;
+	float    binHzScale = ActualOdrHz / (float)FFT_SIZE;	/* 실측 ODR 사용 (RC drift 보정) */
+	uint32_t bin_lo = (uint32_t)(PEAK_SEARCH_LOW_HZ  / binHzScale);
+	uint32_t bin_hi = (uint32_t)(PEAK_SEARCH_HIGH_HZ / binHzScale);
+	float    vMax, vMin, re, im, freq, twoPiF, mag2;
 
-	/* Ring buffer → FFT 입력 (oldest~newest 순) */
-	src = FftInputIdx;
+	if(bin_lo < 1)              bin_lo = 1;
+	if(bin_hi > FFT_SIZE/2 - 1) bin_hi = FFT_SIZE/2 - 1;
+
+	/* 1. Ring buffer → FftInput (oldest~newest) + zero-pad */
+	src = InputRingIdx;
 	for(i = 0; i < MEASUREMENT_WINDOW_SAMPLES; i++){
-		FftInput[i] = FftInputRing[axis][src];
+		FftInput[i] = InputRing[axis][src];
 		src = (src + 1) % MEASUREMENT_WINDOW_SAMPLES;
 	}
-	/* Zero-padding (1660 ~ 2047) */
 	for(i = MEASUREMENT_WINDOW_SAMPLES; i < FFT_SIZE; i++){
 		FftInput[i] = 0;
 	}
 
-	/* Forward real FFT */
-	arm_rfft_fast_f32(&FftInst, FftInput, FftOutput, 0);
+	/* 2. Forward FFT — A[k] = FFT(accel in g)
+	   Packed format:
+	     FftOutput[0]   = Re(DC)
+	     FftOutput[1]   = Re(Nyquist N/2)
+	     FftOutput[2k]  = Re(bin k)   k = 1..N/2-1
+	     FftOutput[2k+1]= Im(bin k)
+	*/
+	oFFT_RealFast(&Fft, FftInput, FftOutput, 0);
 
-	/* Magnitude (complex → real magnitude, N/2 bins) */
-	arm_cmplx_mag_f32(FftOutput, FftMagnitude, FFT_SIZE / 2);
+	/* 3. DC + Nyquist brick-wall (velocity 적분에서 1/f 가 무한대 회피) */
+	FftOutput[0] = 0;
+	FftOutput[1] = 0;
 
-	/* Brick-wall band mask — [PEAK_SEARCH_LOW_HZ, PEAK_SEARCH_HIGH_HZ] 안에서만 검색 */
-	uint32_t bin_lo = (uint32_t)(PEAK_SEARCH_LOW_HZ  * (float)FFT_SIZE / (float)MEASUREMENT_ODR_HZ);
-	uint32_t bin_hi = (uint32_t)(PEAK_SEARCH_HIGH_HZ * (float)FFT_SIZE / (float)MEASUREMENT_ODR_HZ);
-	if(bin_lo < 1)            bin_lo = 1;
-	if(bin_hi > FFT_SIZE / 2) bin_hi = FFT_SIZE / 2;
+	/* 4. Bin loop — Brick-wall band mask 복원 (V[k] = A[k]/jω 의 1/f 증폭 방지)
+	      대역 밖 (특히 < 1 Hz) bin 의 미세 노이즈가 1/f 로 폭주하는 것 차단 */
+	for(i = 1; i < FFT_SIZE/2; i++){
+		re = FftOutput[2*i];
+		im = FftOutput[2*i + 1];
 
-	FftMagnitude[0] = 0;	/* DC bin 명시 제거 (안전망) */
-	arm_max_f32(&FftMagnitude[bin_lo], bin_hi - bin_lo, &maxVal, &maxIdx);
-	maxIdx += bin_lo;	/* 원래 bin 인덱스 복원 */
+		if(i < bin_lo || i > bin_hi){
+			FftOutput[2*i]     = 0;	/* 대역 밖 brick-wall — V[k] 적분 제외 */
+			FftOutput[2*i + 1] = 0;
+			continue;
+		}
 
-	return (float)maxIdx * (float)MEASUREMENT_ODR_HZ / (float)FFT_SIZE;
+		mag2 = re*re + im*im;
+		if(mag2 > maxMag2){
+			maxMag2 = mag2;
+			maxIdx  = i;
+		}
+
+		/* V[k] = A[k] / (j·2π·f) — 대역 안 bin 만 */
+		freq = (float)i * binHzScale;
+		twoPiF = 2.0f * MEASUREMENT_PI * freq;
+		FftOutput[2*i]     =  im / twoPiF;
+		FftOutput[2*i + 1] = -re / twoPiF;
+	}
+
+	*outDominantHz = (float)maxIdx * binHzScale;
+
+	/* 5. Inverse FFT → velocity 시간 도메인 (g·sec 단위) */
+	oFFT_RealFast(&Fft, FftOutput, FftInput, 1);
+
+	/* 6. Velocity max/min + RMS (window 영역만 — zero-pad 영역 제외) */
+	vMax = vMin = FftInput[0];
+	float vSumSq = 0;
+	for(i = 0; i < MEASUREMENT_WINDOW_SAMPLES; i++){
+		float v = FftInput[i];
+		if(v > vMax) vMax = v;
+		if(v < vMin) vMin = v;
+		vSumSq += v * v;
+	}
+
+	/* PPV = (vMax - vMin) / 2 × g(9.80665) × 1000 (g·sec → mm/s peak) */
+	*outPpvMmps = (vMax - vMin) * 0.5f * G_TO_MPSS * 1000.0f;
+
+	/* v_RMS = √(Σv²/N) × g × 1000 (g·sec → mm/s RMS) — ISO 10816/16063 */
+	*outVelRmsMmps = sqrtf(vSumSq / (float)MEASUREMENT_WINDOW_SAMPLES) * G_TO_MPSS * 1000.0f;
 }
 
 /* ============================================================
@@ -180,7 +234,6 @@ static float Measurement_RunFFT(int32_t axis)
 oResult_t Measurement_Init(void)
 {
 	oResult_t result;
-	int32_t ax;
 
 	GPIOs.DO.MEMSEnable = 1;
 
@@ -190,8 +243,15 @@ oResult_t Measurement_Init(void)
 	}
 
 	MiMems.Register.CTRL1_XL.ODR_XL = ISM330DHCX_XL_ODR_1_66KHZ;
-	MiMems.Register.CTRL1_XL.FS_XL  = ISM330DHCX_XL_FS_8G;
+	MiMems.Register.CTRL1_XL.FS_XL  = ISM330DHCX_XL_FS_4G;
 	MiMems.Register.CTRL2_G.ODR_G   = ISM330DHCX_G_ODR_OFF;	/* gyro 미사용 — accel only */
+
+	/* HW HPF — ODR/800 = 0.52 Hz cutoff (1 Hz 신호 ~97% 통과)
+	   HP_SLOPE_XL_EN=1 → HPF 모드, HP_REF_MODE_XL=1 → 부팅 시 자동 reference 캡처 */
+	MiMems.Register.CTRL8_XL.HPCF_XL          = ISM330DHCX_HPCF_XL_ODR_800;
+	MiMems.Register.CTRL8_XL.HP_SLOPE_XL_EN   = 0;	/* HW HPF OFF — SW HPF (Biquad 2 Hz) 사용 */
+	MiMems.Register.CTRL8_XL.HP_REF_MODE_XL   = 0;
+
 	ISM330DHCX_SetConfig(&MiMems);
 
 	/* FIFO Continuous + watermark + accel BDR 1.66 kHz */
@@ -202,32 +262,20 @@ oResult_t Measurement_Init(void)
 	/* INT1 핀에 watermark 매핑 (PA8 EXTI8) */
 	ISM330DHCX_FIFO_EnableINT1(&MiMems, 1, 0);
 
-	/* HPF biquad Reset (oFilter_HPF 첫 호출 시 계수 자동 계산) */
-	for(ax = 0; ax < 3; ax++){
-		HpAccel[ax].Reset = 1;
-		HpVel[ax].Reset = 1;
-	}
-
-	memset(Velocity, 0, sizeof(Velocity));
 	memset(&Snapshot, 0, sizeof(Snapshot));
 
 	PeakMag = 0;
 	PeakAccel[0] = PeakAccel[1] = PeakAccel[2] = 0;
-	VelMin[0] = VelMin[1] = VelMin[2] = 1e30f;
-	VelMax[0] = VelMax[1] = VelMax[2] = -1e30f;
 
-	memset(FftInputRing, 0, sizeof(FftInputRing));
-	FftInputIdx = 0;
-	FftInputReady = 0;
-	SampleCount = 0;
+	memset(InputRing, 0, sizeof(InputRing));
+	InputRingIdx = 0;
+	InputRingReady = 0;
 
 	MiMeasurement_FifoIrqFlag = 0;
 	FallbackTimer = oTMR_GetTick(TICKBASE_SYSTICK);
 
-	/* CMSIS-DSP FFT instance init (1024-pt) */
-	if(arm_rfft_fast_init_f32(&FftInst, FFT_SIZE) != ARM_MATH_SUCCESS){
-		return RESULT_ERROR;
-	}
+	/* ONE_FFT twiddle table precompute (부팅 1회) */
+	oFFT_Init(&Fft, FftTwiddles, FftScratch, FFT_SIZE);
 
 	return RESULT_OK;
 }
@@ -241,123 +289,173 @@ void Measurement_OnFifoIrq(void)
 }
 
 /* ============================================================
- * 1 sample 처리 — HPF·적분·peak·FFT ring push
+ * 1 sample 처리 — HPF + FFT ring push (Peak/PPV/Hz 는 sliding 처리)
  * ============================================================ */
 static inline void Measurement_ProcessSample(int16_t rawX, int16_t rawY, int16_t rawZ)
 {
-	float a_g[3];		/* 가속도 (g 단위) */
-	float ha_g[3];		/* HPF 후 가속도 (g 단위) — FFT·peak 용 */
-	float a_mpss;		/* 임시 m/s² (적분용) */
-	float hv[3];		/* HPF velocity (m/s) */
-	float mag;
-	int32_t ax;
-
-	/* raw → g */
-	a_g[0] = (float)rawX * ACCEL_LSB_TO_G;
-	a_g[1] = (float)rawY * ACCEL_LSB_TO_G;
-	a_g[2] = (float)rawZ * ACCEL_LSB_TO_G;
-
-	/* HPF (g 단위 그대로) — gravity·DC 제거 */
-	for(ax = 0; ax < 3; ax++){
-		ha_g[ax] = (float)oFilter_HPF(&HpAccel[ax], (double)a_g[ax]);
+	/* raw → g → SW HPF (Biquad 2 Hz) → InputRing */
+	float gX = (float)rawX * ACCEL_LSB_TO_G * ACCEL_GAIN_CORRECTION;
+	float gY = (float)rawY * ACCEL_LSB_TO_G * ACCEL_GAIN_CORRECTION;
+	float gZ = (float)rawZ * ACCEL_LSB_TO_G * ACCEL_GAIN_CORRECTION;
+	InputRing[0][InputRingIdx] = (float)oFilter_HPF(&HpfX, (double)gX);
+	InputRing[1][InputRingIdx] = (float)oFilter_HPF(&HpfY, (double)gY);
+	InputRing[2][InputRingIdx] = (float)oFilter_HPF(&HpfZ, (double)gZ);
+	InputRingIdx = (InputRingIdx + 1) % MEASUREMENT_WINDOW_SAMPLES;
+	if(InputRingIdx == 0){
+		InputRingReady = 1;
 	}
 
-	/* 적분 → velocity (m/s)
-	   적분만 SI 단위 필요 → g → m/s² 변환 */
-	for(ax = 0; ax < 3; ax++){
-		a_mpss = ha_g[ax] * G_TO_MPSS;
-		Velocity[ax] += a_mpss * MEASUREMENT_DT_SEC;
+	/* ODR 자동 보정 — 16660 샘플마다 SysTick 으로 실측 ODR 산출 (~10 sec @ 1666 Hz) */
+	static uint32_t odrCnt = 0;
+	static uint32_t odrTickStart = 0;
+	if(odrCnt == 0){
+		odrTickStart = oTMR_GetTick(TICKBASE_SYSTICK);
 	}
-
-	/* velocity HPF (적분 drift 제거) + min/max */
-	for(ax = 0; ax < 3; ax++){
-		hv[ax] = (float)oFilter_HPF(&HpVel[ax], (double)Velocity[ax]);
-		if(hv[ax] < VelMin[ax]) VelMin[ax] = hv[ax];
-		if(hv[ax] > VelMax[ax]) VelMax[ax] = hv[ax];
+	if(++odrCnt >= 16660){
+		uint32_t dt = oTMR_GetTick(TICKBASE_SYSTICK) - odrTickStart;
+		if(dt > 0){
+			float measured = (float)odrCnt * 1000.0f / (float)dt;
+			if(!OdrCalibrated){
+				ActualOdrHz   = measured;					/* 1차 보정: 직접 대입 */
+				OdrCalibrated = 1;
+				oSerial_Log("ODR", "calibrated: %.2f Hz (nominal %d Hz)", (double)measured, MEASUREMENT_ODR_HZ);
+			}else{
+				ActualOdrHz = ActualOdrHz * 0.75f + measured * 0.25f;	/* LPF α=0.25 */
+			}
+		}
+		odrCnt = 0;
 	}
-
-	/* Peak 추적: max |a| 의 순간 3축 동시 캡처 (g 단위) */
-	mag = fabsf(ha_g[0]);
-	if(fabsf(ha_g[1]) > mag) mag = fabsf(ha_g[1]);
-	if(fabsf(ha_g[2]) > mag) mag = fabsf(ha_g[2]);
-
-	if(mag > PeakMag){
-		PeakMag = mag;
-		PeakAccel[0] = ha_g[0];
-		PeakAccel[1] = ha_g[1];
-		PeakAccel[2] = ha_g[2];
-	}
-
-	/* FFT ring push (3축, g 단위) */
-	FftInputRing[0][FftInputIdx] = ha_g[0];
-	FftInputRing[1][FftInputIdx] = ha_g[1];
-	FftInputRing[2][FftInputIdx] = ha_g[2];
-	FftInputIdx = (FftInputIdx + 1) % MEASUREMENT_WINDOW_SAMPLES;
-	if(FftInputIdx == 0){
-		FftInputReady = 1;
-	}
-
-	SampleCount++;
 }
 
 /* ============================================================
- * Reset window
+ * Sliding Peak + RMS 스캔 — 현재 ring (최근 1660 sample) 의 max |a| · 그 순간 3축 · 축별 RMS
  * ============================================================ */
-static void Measurement_ResetWindow(void)
+static float RmsAccelAxis[3] = {0, 0, 0};	/* g RMS (ISO 16063/10816) */
+static float MinAccelAxis[3] = {0, 0, 0};	/* g 축별 min */
+static float MaxAccelAxis[3] = {0, 0, 0};	/* g 축별 max */
+
+static void Measurement_ScanPeak(void)
 {
-	PeakMag = 0;
-	PeakAccel[0] = PeakAccel[1] = PeakAccel[2] = 0;
-	VelMin[0] = VelMin[1] = VelMin[2] = 1e30f;
-	VelMax[0] = VelMax[1] = VelMax[2] = -1e30f;
-	SampleCount = 0;
+	uint32_t i;
+	float ax_v, ay_v, az_v, mag;
+	float peakMag = 0;
+	float peak[3] = {0, 0, 0};
+	float sumSq[3] = {0, 0, 0};
+	float axMin[3], axMax[3];
+
+	axMin[0] = axMax[0] = InputRing[0][0];
+	axMin[1] = axMax[1] = InputRing[1][0];
+	axMin[2] = axMax[2] = InputRing[2][0];
+
+	for(i = 0; i < MEASUREMENT_WINDOW_SAMPLES; i++){
+		ax_v = InputRing[0][i];
+		ay_v = InputRing[1][i];
+		az_v = InputRing[2][i];
+
+		/* 축별 min/max */
+		if(ax_v < axMin[0]) axMin[0] = ax_v; else if(ax_v > axMax[0]) axMax[0] = ax_v;
+		if(ay_v < axMin[1]) axMin[1] = ay_v; else if(ay_v > axMax[1]) axMax[1] = ay_v;
+		if(az_v < axMin[2]) axMin[2] = az_v; else if(az_v > axMax[2]) axMax[2] = az_v;
+
+		/* max |a| 순간 스냅샷 (내부 유지) */
+		mag = fabsf(ax_v);
+		if(fabsf(ay_v) > mag) mag = fabsf(ay_v);
+		if(fabsf(az_v) > mag) mag = fabsf(az_v);
+		if(mag > peakMag){
+			peakMag = mag;
+			peak[0] = ax_v;
+			peak[1] = ay_v;
+			peak[2] = az_v;
+		}
+
+		/* RMS 누적 */
+		sumSq[0] += ax_v * ax_v;
+		sumSq[1] += ay_v * ay_v;
+		sumSq[2] += az_v * az_v;
+	}
+
+	PeakMag = peakMag;
+	PeakAccel[0] = peak[0];
+	PeakAccel[1] = peak[1];
+	PeakAccel[2] = peak[2];
+
+	MinAccelAxis[0] = axMin[0]; MinAccelAxis[1] = axMin[1]; MinAccelAxis[2] = axMin[2];
+	MaxAccelAxis[0] = axMax[0]; MaxAccelAxis[1] = axMax[1]; MaxAccelAxis[2] = axMax[2];
+
+	float invN = 1.0f / (float)MEASUREMENT_WINDOW_SAMPLES;
+	RmsAccelAxis[0] = sqrtf(sumSq[0] * invN);
+	RmsAccelAxis[1] = sqrtf(sumSq[1] * invN);
+	RmsAccelAxis[2] = sqrtf(sumSq[2] * invN);
 }
 
 /* ============================================================
- * Snapshot 계산 — FFT + 출력
+ * Snapshot 계산 — sliding window (FIFO batch 마다 호출)
+ *   - Peak: 최근 1660 sample 의 max |a| 스캔
+ *   - PPV/Hz: 축별 ComputeAxisStats (freq-domain 적분)
  * ============================================================ */
 static void Measurement_ComputeSnapshot(void)
 {
+	int32_t ax;
+
+	if(!InputRingReady){
+		/* Ring 아직 가득 안 참 — 데이터 부족 */
+		Snapshot.PeakAccel[0] = Snapshot.PeakAccel[1] = Snapshot.PeakAccel[2] = 0;
+		Snapshot.MinAccel[0]  = Snapshot.MinAccel[1]  = Snapshot.MinAccel[2]  = 0;
+		Snapshot.MaxAccel[0]  = Snapshot.MaxAccel[1]  = Snapshot.MaxAccel[2]  = 0;
+		Snapshot.RmsAccel[0]  = Snapshot.RmsAccel[1]  = Snapshot.RmsAccel[2]  = 0;
+		Snapshot.PPV[0]       = Snapshot.PPV[1]       = Snapshot.PPV[2]       = 0;
+		Snapshot.VelRms[0]    = Snapshot.VelRms[1]    = Snapshot.VelRms[2]    = 0;
+		Snapshot.DominantHz[0] = Snapshot.DominantHz[1] = Snapshot.DominantHz[2] = 0;
+		return;
+	}
+
+	Measurement_ScanPeak();
+
 	Snapshot.PeakAccel[0] = PeakAccel[0];
 	Snapshot.PeakAccel[1] = PeakAccel[1];
 	Snapshot.PeakAccel[2] = PeakAccel[2];
+	Snapshot.MinAccel[0]  = MinAccelAxis[0];
+	Snapshot.MinAccel[1]  = MinAccelAxis[1];
+	Snapshot.MinAccel[2]  = MinAccelAxis[2];
+	Snapshot.MaxAccel[0]  = MaxAccelAxis[0];
+	Snapshot.MaxAccel[1]  = MaxAccelAxis[1];
+	Snapshot.MaxAccel[2]  = MaxAccelAxis[2];
+	Snapshot.RmsAccel[0]  = RmsAccelAxis[0];
+	Snapshot.RmsAccel[1]  = RmsAccelAxis[1];
+	Snapshot.RmsAccel[2]  = RmsAccelAxis[2];
 
-	Snapshot.PPV[0] = (VelMax[0] - VelMin[0]) * 0.5f * 1000.0f;
-	Snapshot.PPV[1] = (VelMax[1] - VelMin[1]) * 0.5f * 1000.0f;
-	Snapshot.PPV[2] = (VelMax[2] - VelMin[2]) * 0.5f * 1000.0f;
-
-	if(FftInputReady){
-		/* 축별 임계값 검사 — PPV ≥ 0.5 mm/s 또는 Peak ≥ 30 mg 일 때만 FFT 의미
-		   (정지 시 노이즈 floor 의 무작위 dominant Hz 출력 방지) */
-		int32_t ax;
-		for(ax = 0; ax < 3; ax++){
-			if(Snapshot.PPV[ax] >= MEASUREMENT_PPV_THRESHOLD_MMPS ||
-			   PeakMag           >= MEASUREMENT_PEAK_THRESHOLD_G){
-				Snapshot.DominantHz[ax] = Measurement_RunFFT(ax);
-			}
-			else{
-				Snapshot.DominantHz[ax] = 0;	/* 노이즈 floor — Hz 의미 없음 */
-			}
-		}
+	for(ax = 0; ax < 3; ax++){
+		Measurement_ComputeAxisStats(ax, &Snapshot.DominantHz[ax], &Snapshot.PPV[ax], &Snapshot.VelRms[ax]);
 	}
-	else{
-		Snapshot.DominantHz[0] = 0;
-		Snapshot.DominantHz[1] = 0;
-		Snapshot.DominantHz[2] = 0;
+
+	/* 신호/노이즈 임계 — PPV·Peak 모두 미달 시 Hz=0 마스킹 (노이즈 floor 표시 차단) */
+	for(ax = 0; ax < 3; ax++){
+		if(Snapshot.PPV[ax] < MEASUREMENT_PPV_THRESHOLD_MMPS &&
+		   PeakMag           < MEASUREMENT_PEAK_THRESHOLD_G){
+			Snapshot.DominantHz[ax] = 0;
+		}
 	}
 
 	Snapshot.Temperature = MiMems.Temperature;
 
-	oSerial_Log("MEMS", "ACC[%7.4f,%7.4f,%7.4f]g PPV[%6.3f,%6.3f,%6.3f]mm/s Hz[%3d,%3d,%3d] T=%5.2f",
-	            (double)Snapshot.PeakAccel[0],
-	            (double)Snapshot.PeakAccel[1],
-	            (double)Snapshot.PeakAccel[2],
-	            (double)Snapshot.PPV[0],
-	            (double)Snapshot.PPV[1],
-	            (double)Snapshot.PPV[2],
-	            (int)Snapshot.DominantHz[0],
-	            (int)Snapshot.DominantHz[1],
-	            (int)Snapshot.DominantHz[2],
-	            (double)Snapshot.Temperature);
+	/* 출력 throttle — FFT N 회마다 1회 log 출력 (전송 주기 = FFT 주기 × DIVIDER) */
+	static uint32_t fftRunCount = 0;
+	if(++fftRunCount < MEASUREMENT_OUTPUT_FFT_DIVIDER){
+		return;
+	}
+	fftRunCount = 0;
+
+	oSerial_Log("MEMS",
+	            "X[%+6.3f,%+6.3f]g Y[%+6.3f,%+6.3f]g Z[%+6.3f,%+6.3f]g "
+	            "RMS[%+6.4f,%+6.4f,%+6.4f]g "
+	            "PPV[%6.2f,%6.2f,%6.2f]mm/s "
+	            "Hz[%3d,%3d,%3d]",
+	            (double)Snapshot.MinAccel[0], (double)Snapshot.MaxAccel[0],
+	            (double)Snapshot.MinAccel[1], (double)Snapshot.MaxAccel[1],
+	            (double)Snapshot.MinAccel[2], (double)Snapshot.MaxAccel[2],
+	            (double)Snapshot.RmsAccel[0], (double)Snapshot.RmsAccel[1], (double)Snapshot.RmsAccel[2],
+	            (double)Snapshot.PPV[0],      (double)Snapshot.PPV[1],      (double)Snapshot.PPV[2],
+	            (int)Snapshot.DominantHz[0],  (int)Snapshot.DominantHz[1],  (int)Snapshot.DominantHz[2]);
 }
 
 /* ============================================================
@@ -426,16 +524,12 @@ void Measurement_Process(void)
 			break;
 
 		case MS_RUN:
-			/* IRQ 또는 fallback 트리거 */
+			/* IRQ 또는 fallback 트리거 — batch read 후 sliding snapshot */
 			if(MiMeasurement_FifoIrqFlag || oTMR_Elapsed(&FallbackTimer, MEASUREMENT_FALLBACK_MS, TICKBASE_SYSTICK)){
 				MiMeasurement_FifoIrqFlag = 0;
 				FallbackTimer = oTMR_GetTick(TICKBASE_SYSTICK);
 				Measurement_ProcessBatch();
-
-				if(SampleCount >= MEASUREMENT_WINDOW_SAMPLES){
-					Measurement_ComputeSnapshot();
-					Measurement_ResetWindow();
-				}
+				Measurement_ComputeSnapshot();	/* 매 batch 마다 sliding window 재계산·출력 */
 			}
 			break;
 	}
@@ -479,9 +573,3 @@ oResult_t Measurement_Supply(uint8_t Count)
 	GPIOs.ADC.InternalBAT  = 3300;
 	return RESULT_OK;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_Measurement.c)
-*/

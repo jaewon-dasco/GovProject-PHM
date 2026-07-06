@@ -428,7 +428,6 @@ extern uint8_t MiIoT_LED;
 //****************************************************************************************************************************
 extern char* MiIoT_DataTypeToString(IoTDataType_t Type);
 extern char* MiIoT_SensorTypeToString(IoTSensorType_t Type);
-extern uint8_t MiIoT_GetChannelNumber(IoTChannelConfig_t *pConfig);
 extern oResult_t MiIoT_IsValidParameter(IoTParameter_t *pParameter);
 extern oResult_t MiIoT_IsSensorData(IoTProductType_t ProductCode, IoT_DataPacket_t *pPayload);
 extern IoT_MailboxItem_t* MiIoT_MailBox_GetLastItem(IoT_Mailbox_t *pMailBox);
@@ -439,7 +438,6 @@ extern IoT_MailboxItem_t* MiIoT_MailBox_GetItem(IoT_Mailbox_t* pMailBox);
 extern void MiIoT_MailBox_Remove(IoT_Mailbox_t* pMailBox, IoT_MailboxItem_t *pItem);
 extern IoT_MailboxItem_t* MiIoT_MailBox_Find(IoT_Mailbox_t *pMailBox, IoTDataType_t TypeOfData);
 extern oResult_t MiIoT_MailBox_IsExist(IoT_Mailbox_t *pMailBox, IoTDataType_t TypeOfData);
-extern oDateAndTime_t MiMain_GetSamplingTime();
 extern void MiIoT();
 
 #endif /* INC_MI_IOT_H_ */

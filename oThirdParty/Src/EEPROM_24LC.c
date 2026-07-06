@@ -1,11 +1,7 @@
 /*
  * EEPROM_24LC.c
  *
- *  Microchip 24LCxx I2C Serial EEPROM 드라이버.
- *
- *  Created on: Dec 24, 2024
- *      Author: JONE
- *  Reference: https://github.com/nimaltd/ee24/blob/master/ee24.c
+ *  Version: 0.1 (2026-06-29)
  */
 
 #include "ONE_Common.h"
@@ -24,8 +20,7 @@
 static void EEPROM_24LC_WP_Set(EEPROM_24LC_t *pDev, uint8_t State)
 {
 	if(pDev != NULL && pDev->pWP != NULL){
-		HAL_GPIO_WritePin(pDev->pWP->Port, pDev->pWP->Pin,
-		                  State ? pDev->pWP->ActiveLevel : !pDev->pWP->ActiveLevel);
+		HAL_GPIO_WritePin(pDev->pWP->Port, pDev->pWP->Pin, State ? pDev->pWP->ActiveLevel : !pDev->pWP->ActiveLevel);
 	}
 }
 
@@ -194,9 +189,3 @@ oResult_t EEPROM_24LC_Write(EEPROM_24LC_t *pDev, uint16_t Index, uint8_t *pData,
 
 	return result;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (EEPROM_24LC.c)
-*/

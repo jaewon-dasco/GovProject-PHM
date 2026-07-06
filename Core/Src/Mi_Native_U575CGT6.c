@@ -1,6 +1,11 @@
 /*
  * Mi_Native_U575CGT6.c
  *
+ *  Version: 0.1 (2026-06-29)
+ */
+/*
+ * Mi_Native_U575CGT6.c
+ *
  * STM32U575CGT6 (Cortex-M33) 네이티브 추상 구현.
  * Mi_Native_L433RBT7.c 베이스 — STM32L4 → STM32U5 포팅 필요.
  *
@@ -124,7 +129,6 @@ oResult_t Native_FlashWriteAddress(uint32_t Address, uint8_t *pData, uint32_t Si
 	uint8_t *WriteOfPointer = pData;
 	uint32_t PageError;
     oResult_t result = RESULT_RUN;
-    uint64_t Data;
     uint32_t Size;
     uint32_t PageNo;
 
@@ -773,9 +777,3 @@ oResult_t Native_SetPWM(TIM_HandleTypeDef *pTIM, uint32_t Frequency, uint32_t Ch
     return RESULT_OK;
 }
 #endif
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_Native_U575CGT6.c)
-*/

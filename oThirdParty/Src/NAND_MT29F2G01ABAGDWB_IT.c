@@ -1,11 +1,7 @@
 /*
  * NAND_MT29F2G01ABAGDWB_IT.c
  *
- * Created on: Feb 25, 2025
- * Author: JONE
- *
- * 이 파일은 QSPI Dual Flash 환경에서 Micron MT29F2G01ABAGDWB-IT NAND Flash를 제어하기 위한
- * 초기화, 읽기, 쓰기, 블록 삭제 등 기본 기능을 구현한 예제 코드입니다.
+ *  Version: 0.1 (2026-06-29)
  */
 
 #include "NAND_MT29F2G01ABAGDWB_IT.h"
@@ -763,9 +759,3 @@ oResult_t MT29F2G_WritePage(MT29F2G_t *pMT29F2G, uint32_t Block, uint32_t Page, 
 	return MT29F2G_WriteByte(pMT29F2G, Block, Page, 0, pData, Size);
 }
 #endif
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (NAND_MT29F2G01ABAGDWB_IT.c)
-*/

@@ -1,4 +1,9 @@
 /*
+ * Mi_Storage_PHM.c
+ *
+ *  Version: 0.1 (2026-06-29)
+ */
+/*
  * Mi_Storage_PHM.c — PHM 24LC16B EEPROM 기반 파라미터 저장
  *
  *  레이아웃 (2048 byte EEPROM):
@@ -31,10 +36,10 @@ MiStorage_NandHeader_t MiStorage_NandHeader;
 
 /* ─── Device ─── */
 static EEPROM_24LC_t MiEEPROM;
+extern oIO_t DO_EEPROM_WP;
 
 /* IoTParameter 가 EEPROM 용량 내 들어가는지 컴파일타임 검증 */
-_Static_assert(sizeof(IoTParameter_t) <= (EEPROM_24LC_MAX_BYTESIZE - MISTORAGE_EEPROM_DATA_ADDR),
-               "IoTParameter_t too large for 24LC16B EEPROM");
+_Static_assert(sizeof(IoTParameter_t) <= (EEPROM_24LC_MAX_BYTESIZE - MISTORAGE_EEPROM_DATA_ADDR), "IoTParameter_t too large for 24LC16B EEPROM");
 
 /* ============================================================
  * Open — EEPROM 전원 ON + driver init
@@ -48,7 +53,7 @@ oResult_t MiStorage_Open(void)
 	GPIOs.DO.EEPROMEnable = 1;
 	HAL_Delay(5);	/* VDD 안정화 (24LC16B Tpur < 1ms) */
 
-	if(EEPROM_24LC_Init(&MiEEPROM, &hi2c1, NULL, 0) != RESULT_OK){
+	if(EEPROM_24LC_Init(&MiEEPROM, &hi2c1, &DO_EEPROM_WP, 0) != RESULT_OK){
 		oSerial_Log("MiStorage", "EEPROM init FAIL");
 		MiStorage_NandHeader.Status.IsFault = 1;
 		return RESULT_ERROR;
@@ -258,9 +263,3 @@ void MiStorage(void)
 			break;
 	}
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_Storage_PHM.c)
-*/

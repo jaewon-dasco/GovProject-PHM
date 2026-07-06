@@ -21,9 +21,9 @@ extern uint8_t MiSerial_TxBuffer[MISERIAL_TX_BUFFER_SIZE];
 extern uint8_t MiSerial_RxBuffer[MISERIAL_RX_BUFFER_SIZE];
 extern oSerialHandler_t MiSerial_Handler;
 
-extern uint8_t MiSerial_UpdateStateTrig;
 extern uint8_t MiSerial_UpdateSensorCmd;
 extern uint8_t MiSerial_SamplingADCsTrig;
+extern uint8_t MiSerial_SensorSamplingProgress;
 
 extern void MiSerial_Process();
 extern oResult_t MiSerial_Specific(char *Message);

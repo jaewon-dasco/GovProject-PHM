@@ -1,12 +1,7 @@
 /*
  * ONE_Filter.c
  *
- *  Created on: Apr 14, 2026
- *      Author: JONE
- *
- * 2nd-order Biquad IIR Filters
- * Coefficient formulas from Audio EQ Cookbook (Robert Bristow-Johnson)
- * Moving Average Filter
+ *  Version: 0.1 (2026-06-29)
  */
 
 #include "ONE_Filter.h"
@@ -337,9 +332,3 @@ oRange_t oMoveAverage_GetRange(oMoveAverage_t *pAvg)
 
 	return result;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (ONE_Filter.c)
-*/

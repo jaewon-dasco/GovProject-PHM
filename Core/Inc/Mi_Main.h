@@ -27,7 +27,9 @@ typedef struct{
 		uint8_t LoRaEnable;
 		uint8_t MEMSEnable;
 		uint8_t EEPROMEnable;
+		uint8_t EEPROM_WP;
 		uint8_t RS485Enable;
+		uint8_t PowerLED;
 	}DO;
 
 	struct{

@@ -1,8 +1,7 @@
 /*
  * Mi_IoT.c
  *
- *  Created on: Nov 29, 2024
- *      Author: JONE
+ *  Version: 0.1 (2026-06-29)
  */
 
 #include "Mi_Native.h"
@@ -663,9 +662,3 @@ void MiIoT(UART_HandleTypeDef *pLoRaUART)
 
 	MiIoT_IsPause = 0;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_IoT.c)
-*/

@@ -1,8 +1,7 @@
 /*
- * ONE_IoControl.c
+ * ONE_Signal.c
  *
- *  Created on: Dec 5, 2024
- *      Author: JONE
+ *  Version: 0.1 (2026-06-29)
  */
 #include "ONE_Common.h"
 #include "ONE_Time.h"
@@ -274,9 +273,3 @@ uint8_t oDelay_AutoOff(oDelay_t *pDelay)
 
     return pDelay->Output;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (ONE_Signal.c)
-*/

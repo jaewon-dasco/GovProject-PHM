@@ -1,8 +1,7 @@
 /*
- * ONE_Debug.c
+ * ONE_Serial.c
  *
- *  Created on: Sep 5, 2024
- *      Author: JONE
+ *  Version: 0.1 (2026-06-29)
  */
 
 #include "stdarg.h"
@@ -565,9 +564,3 @@ void oSerial_Log(char* Title, const char* format, ...)
 	}
 }
 #endif
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (ONE_Serial.c)
-*/

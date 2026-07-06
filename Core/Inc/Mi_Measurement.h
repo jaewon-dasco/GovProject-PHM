@@ -11,7 +11,7 @@
 #ifndef INC_MI_MEASUREMENT_H_
 #define INC_MI_MEASUREMENT_H_
 
-#define MI_MEASUREMENT_VERSION		0.1
+#define MI_MEASUREMENT_VERSION		0.4
 
 #include "Mi_Main.h"
 #include "Mi_IoT.h"
@@ -30,4 +30,13 @@ extern void      Measurement_OnFifoIrq(void);	/* EXTI8 ISR 호출 */
 
 2026-06-26 | v0.1
 	- baseline (Mi_Measurement.h)
+
+2026-07-03 | v0.2
+	- 자체 FFT 구현을 OneLibrary ONE_FFT 로 추출
+
+2026-07-03 | v0.3
+	- 가속도 게인 보정 ACCEL_GAIN_CORRECTION(1/1.7) 추가 — 추후 제거 가능
+
+2026-07-03 | v0.4
+	- MEMS 로그 포맷 변경 — X/Y/Z[min,max], RMS[x,y,z], PPV, Hz 순
 */

@@ -1,6 +1,11 @@
 /*
  * Mi_LoRa_PHM.c
  *
+ *  Version: 0.1 (2026-06-29)
+ */
+/*
+ * Mi_LoRa_PHM.c
+ *
  * PHM 디바이스 LoRa 페이로드 인코더.
  * 사용 데이터 타입: Vibration / Status / Operating.
  */
@@ -48,9 +53,3 @@ uint32_t MiLoRa_Encode(IoT_MailboxItem_t *pMail, uint8_t SeqeunceCount, uint8_t 
 
 	return SizeofData;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_LoRa_PHM.c)
-*/

@@ -1,8 +1,7 @@
 /*
- * MiLoRa.c
+ * Mi_LoRa.c
  *
- *  Created on: Nov 29, 2024
- *      Author: JONE
+ *  Version: 0.11 (2026-07-03)
  */
 #include "Mi_IoT.h"
 #include "Mi_Serial.h"
@@ -916,6 +915,10 @@ void MiLoRa_Control()
  * 실행 순서: 전원제어 → 시간동기화 → 메일전송 → RAK3172 AT 처리 */
 void MiLoRa(UART_HandleTypeDef *pUART)
 {
+	if(pUART == NULL){
+		return;
+	}
+
 	pLoRaUART = pUART;
 
 	MiLoRa_Control();					// LoRa 전원 Open/Close 제어
@@ -923,9 +926,3 @@ void MiLoRa(UART_HandleTypeDef *pUART)
 	MiLoRa_MailBoxTransmitScheduler();	// 메일박스 전송 스케줄러
 	RAK3172();							// RAK3172 AT 명령 송수신 처리
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_LoRa.c)
-*/

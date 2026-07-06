@@ -151,6 +151,18 @@ typedef enum{
 	ISM330DHCX_XL_FS_8G			= 0b11,
 }ISM330DHCX_AccelFS_t;
 
+/* Accelerometer HPF/LPF2 cutoff (CTRL8_XL[7:5] HPCF_XL) — ODR 대비 분주 */
+typedef enum{
+	ISM330DHCX_HPCF_XL_ODR_4	= 0b000,	/* ODR/4   */
+	ISM330DHCX_HPCF_XL_ODR_10	= 0b001,	/* ODR/10  */
+	ISM330DHCX_HPCF_XL_ODR_20	= 0b010,	/* ODR/20  */
+	ISM330DHCX_HPCF_XL_ODR_45	= 0b011,	/* ODR/45  */
+	ISM330DHCX_HPCF_XL_ODR_100	= 0b100,	/* ODR/100 */
+	ISM330DHCX_HPCF_XL_ODR_200	= 0b101,	/* ODR/200 */
+	ISM330DHCX_HPCF_XL_ODR_400	= 0b110,	/* ODR/400 */
+	ISM330DHCX_HPCF_XL_ODR_800	= 0b111,	/* ODR/800 — 최저 cutoff */
+}ISM330DHCX_HpcfXL_t;
+
 /* Gyroscope ODR (CTRL2_G[7:4]) */
 typedef enum{
 	ISM330DHCX_G_ODR_OFF		= 0b0000,
@@ -268,6 +280,18 @@ typedef struct{
 			};
 			uint8_t Byte;
 		}CTRL6_C;	/* 0x15 */
+
+		union{
+			struct{
+				uint8_t LOW_PASS_ON_6D		: 1;
+				uint8_t						: 1;
+				uint8_t HP_SLOPE_XL_EN		: 1;	/* 1 = HPF, 0 = LPF2 */
+				uint8_t FASTSETTL_MODE_XL	: 1;
+				uint8_t HP_REF_MODE_XL		: 1;	/* 1 = auto reset DC reference */
+				uint8_t HPCF_XL				: 3;	/* HPF/LPF2 cutoff: 0~7 (ODR/4 ~ ODR/800) */
+			};
+			uint8_t Byte;
+		}CTRL8_XL;	/* 0x17 */
 
 	}Register;
 

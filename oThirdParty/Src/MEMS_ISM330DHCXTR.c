@@ -1,12 +1,7 @@
 /*
  * MEMS_ISM330DHCXTR.c
  *
- *  ST ISM330DHCX 6-Axis MEMS IMU 드라이버 (SPI).
- *  참고: MEMS_ICM42688P.c (TDK 6축 IMU, 동일 SPI 패턴),
- *        MEMS_ADXL355BEZRL7.c (ADI 3축, state machine·recovery 패턴)
- *
- *  Created on: 2026-06-23
- *      Author: JONE
+ *  Version: 0.1 (2026-06-29)
  */
 
 #include "ONE_Common.h"
@@ -179,6 +174,9 @@ oResult_t ISM330DHCX_SetConfig(ISM330DHCX_t *pDev)
 
 	/* CTRL2_G: Gyro ODR + FS */
 	if((result = ISM330DHCX_WriteRegByte(pDev, ISM330DHCX_REG_CTRL2_G, pDev->Register.CTRL2_G.Byte)) != RESULT_OK) return result;
+
+	/* CTRL8_XL: Accel HPF/LPF2 cutoff + mode */
+	if((result = ISM330DHCX_WriteRegByte(pDev, ISM330DHCX_REG_CTRL8_XL, pDev->Register.CTRL8_XL.Byte)) != RESULT_OK) return result;
 
 	return RESULT_OK;
 }
@@ -538,9 +536,3 @@ oResult_t ISM330DHCX_Close(ISM330DHCX_t *pDev)
 
 	return RESULT_OK;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (MEMS_ISM330DHCXTR.c)
-*/

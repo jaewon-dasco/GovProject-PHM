@@ -8,7 +8,7 @@
 #ifndef INC_MI_LORA_H_
 #define INC_MI_LORA_H_
 
-#define MI_LORA_VERSION		0.1
+#define MI_LORA_VERSION		0.11
 
 #include "Mi_IoT.h"
 #include "Mi_Main.h"
@@ -37,12 +37,9 @@ extern uint32_t MiLoRa_ReceiveTimestamp;
 extern uint32_t MiLoRa_OpenTimestamp;
 extern uint32_t MiLoRa_CloseTimestamp;
 
-extern void MiLoRa_ReceiveCallback(uint32_t Address, uint16_t DLC, uint8_t *Payload);
 extern oResult_t MiLoRa_SendMailbox(IoT_MailboxItem_t *pMail);
 extern void MiLoRa_Control();
 extern void MiLoRa_MailBoxTransmitScheduler();
-extern oResult_t MiLoRa_UpdateTime();
-extern oResult_t MiLoRa_UpdateInformaiton();
 extern oResult_t MiLoRa_Open();
 extern oResult_t MiLoRa_Close();
 extern void MiLoRa(UART_HandleTypeDef *pUART);

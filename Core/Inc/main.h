@@ -57,6 +57,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define DO_POWER_LED_Pin GPIO_PIN_13
+#define DO_POWER_LED_GPIO_Port GPIOC
 #define UART3_LORARX_Pin GPIO_PIN_5
 #define UART3_LORARX_GPIO_Port GPIOA
 #define UART3_LORATX_Pin GPIO_PIN_7
@@ -81,6 +83,8 @@ void Error_Handler(void);
 #define UART1_RS485DE_GPIO_Port GPIOA
 #define SPI1_CS_Pin GPIO_PIN_15
 #define SPI1_CS_GPIO_Port GPIOA
+#define DO_EEPROM_WP_Pin GPIO_PIN_8
+#define DO_EEPROM_WP_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

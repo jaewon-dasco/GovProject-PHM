@@ -1,8 +1,7 @@
 /*
- * ONE_Timer.c
+ * ONE_Common.c
  *
- * Created: 2024-08-27 오전 11:55:38
- *  Author: JONE
+ *  Version: 0.1 (2026-06-29)
  */
 #include "ONE_Time.h"
 #include "ONE_Common.h"
@@ -349,9 +348,3 @@ void oString_Right(char *Source, char *Destination, uint32_t Count)
 		*Destination++ = *i;
 	}
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (ONE_Common.c)
-*/

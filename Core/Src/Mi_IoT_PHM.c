@@ -1,6 +1,11 @@
 /*
  * Mi_IoT_PHM.c
  *
+ *  Version: 0.1 (2026-06-29)
+ */
+/*
+ * Mi_IoT_PHM.c
+ *
  *  PHM 디바이스 IoT 파라미터 검증.
  *  센서: ISM330DHCXTR 6축 IMU — Vibration 분석 채널 1개 사용
  */
@@ -54,9 +59,3 @@ oResult_t MiIoT_IsSensorData(IoTProductType_t ProductCode, IoT_DataPacket_t *pPa
 
 	return RESULT_ERROR;
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_IoT_PHM.c)
-*/

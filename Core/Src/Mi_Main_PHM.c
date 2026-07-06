@@ -1,3 +1,8 @@
+/*
+ * Mi_Main_PHM.c
+ *
+ *  Version: 0.1 (2026-06-29)
+ */
 #include "ONE_Signal.h"
 #include "ONE_Time.h"
 #include "ONE_Memory.h"
@@ -17,7 +22,9 @@ oIO_t DO_EEPROM_ENABLE	= {DO_EEPROM_ENABLE_GPIO_Port,	DO_EEPROM_ENABLE_Pin,	IO_L
 oIO_t DO_MEMS_ENABLE	= {DO_MEMS_ENABLE_GPIO_Port,	DO_MEMS_ENABLE_Pin,		IO_LOW};
 oIO_t DO_LORA_ENABLE	= {DO_LORA_ENABLE_GPIO_Port,	DO_LORA_ENABLE_Pin,		IO_LOW};
 oIO_t DO_RS485_ENABLE	= {DO_RS485_ENABLE_GPIO_Port,	DO_RS485_ENABLE_Pin,	IO_LOW};
-oIO_t DO_MEMS_CS 			= {SPI1_CS_GPIO_Port, 			SPI1_CS_Pin, 			IO_LOW };	/* active LOW */
+oIO_t DO_MEMS_CS 		= {SPI1_CS_GPIO_Port, 			SPI1_CS_Pin, 			IO_LOW };	/* active LOW */
+oIO_t DO_EEPROM_WP 		= {DO_EEPROM_WP_GPIO_Port, 		DO_EEPROM_WP_Pin, 		IO_HIGH};
+oIO_t DO_POWER_LED 		= {DO_POWER_LED_GPIO_Port, 		DO_POWER_LED_Pin, 		IO_LOW};
 oIO_t DI_MEMS_INT1		= {DI_MEMS_INT1_GPIO_Port,		DI_MEMS_INT1_Pin,		IO_HIGH};
 oIO_t DI_MEMS_INT2		= {DI_MEMS_INT2_GPIO_Port,		DI_MEMS_INT2_Pin,		IO_HIGH};
 
@@ -28,10 +35,12 @@ oDebounce_t DebounceError	= DEBOUNCE_INITIALIZER(1000,300);
 oResult_t MiMain_GPIOControl()
 {
 	//GPIO output
-	IO_WRITE(DO_LORA_ENABLE,   GPIOs.DO.LoRaEnable);
-	IO_WRITE(DO_MEMS_ENABLE,   GPIOs.DO.MEMSEnable);
-	IO_WRITE(DO_EEPROM_ENABLE, GPIOs.DO.EEPROMEnable);
-	IO_WRITE(DO_RS485_ENABLE,  GPIOs.DO.RS485Enable);
+	IO_WRITE(DO_LORA_ENABLE,	GPIOs.DO.LoRaEnable);
+	IO_WRITE(DO_MEMS_ENABLE,	GPIOs.DO.MEMSEnable);
+	IO_WRITE(DO_EEPROM_ENABLE,	GPIOs.DO.EEPROMEnable);
+	//IO_WRITE(DO_EEPROM_WP,		GPIOs.DO.EEPROM_WP);
+	IO_WRITE(DO_RS485_ENABLE,	GPIOs.DO.RS485Enable);
+	IO_WRITE(DO_POWER_LED,		GPIOs.DO.PowerLED);
 
 	//GPIO input
 	GPIOs.DI.MemsEvent1 = IO_READ(DI_MEMS_INT1);
@@ -42,6 +51,7 @@ oResult_t MiMain_GPIOControl()
 	IORun += GPIOs.DO.MEMSEnable;
 	IORun += GPIOs.DO.EEPROMEnable;
 	IORun += GPIOs.DO.RS485Enable;
+	IORun += GPIOs.DO.PowerLED;
 
 	return IORun ? RESULT_RUN : RESULT_ERROR;
 }
@@ -54,8 +64,14 @@ void MiMain_GPIODeInit(void)
 	HAL_GPIO_Init(DO_MEMS_ENABLE.Port, &cfg);
 	cfg.Pin = DO_EEPROM_ENABLE.Pin;
 	HAL_GPIO_Init(DO_EEPROM_ENABLE.Port, &cfg);
+	cfg.Pin = DO_EEPROM_WP.Pin;
+	HAL_GPIO_Init(DO_EEPROM_WP.Port, &cfg);
 	cfg.Pin = DO_RS485_ENABLE.Pin;
 	HAL_GPIO_Init(DO_RS485_ENABLE.Port, &cfg);
+	cfg.Pin = DO_POWER_LED.Pin;
+	HAL_GPIO_Init(DO_POWER_LED.Port, &cfg);
+	cfg.Pin = DO_MEMS_CS.Pin;
+	HAL_GPIO_Init(DO_MEMS_CS.Port, &cfg);
 
 	if(!MiLoRa_IsSleep){
 		cfg.Pin = DO_LORA_ENABLE.Pin;
@@ -71,7 +87,7 @@ void MiMain_GPIOInit(void)
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 	__HAL_RCC_GPIOH_CLK_ENABLE();
 
-	/* 1. OD outputs 모드 먼저 설정 (.ioc 와 일치: PB12-15 = OD, NOPULL, init HIGH) */
+	/* 1. OD outputs 모드 (.ioc 와 일치: PB12-15 = OD, NOPULL, init HIGH) */
 	cfg.Mode = GPIO_MODE_OUTPUT_OD;
 	cfg.Pull = GPIO_NOPULL;
 
@@ -84,7 +100,18 @@ void MiMain_GPIOInit(void)
 	cfg.Pin = DO_RS485_ENABLE.Pin;
 	HAL_GPIO_Init(DO_RS485_ENABLE.Port, &cfg);
 
-	/* 2. EXTI Rising inputs — MEMS INT1(PA8), INT2(PA11) */
+	/* 2. PP outputs — Power LED, EEPROM WP, SPI1 CS (.ioc 와 일치) */
+	cfg.Mode = GPIO_MODE_OUTPUT_PP;
+	cfg.Pull = GPIO_NOPULL;
+
+	cfg.Pin = DO_POWER_LED.Pin;
+	HAL_GPIO_Init(DO_POWER_LED.Port, &cfg);
+	cfg.Pin = DO_EEPROM_WP.Pin;
+	HAL_GPIO_Init(DO_EEPROM_WP.Port, &cfg);
+	cfg.Pin = DO_MEMS_CS.Pin;
+	HAL_GPIO_Init(DO_MEMS_CS.Port, &cfg);
+
+	/* 3. EXTI Rising inputs — MEMS INT1(PA8), INT2(PA11) */
 	cfg.Mode = GPIO_MODE_IT_RISING;
 	cfg.Pull = GPIO_NOPULL;
 
@@ -98,7 +125,7 @@ void MiMain_GPIOInit(void)
 	HAL_NVIC_SetPriority(EXTI11_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(EXTI11_IRQn);
 
-	/* 3. 모드 설정 후 마지막에 IO 값 적용 */
+	/* 4. 모드 설정 후 마지막에 IO 값 적용 */
 	MiMain_GPIOControl();
 }
 
@@ -187,9 +214,3 @@ void MiMain (void)
 			break;
 	}
 }
-
-/* History
-
-2026-06-26 | v0.1
-	- baseline (Mi_Main_PHM.c)
-*/
