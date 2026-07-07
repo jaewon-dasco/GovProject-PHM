@@ -1,0 +1,11 @@
+../OneLibrary/Src/ONE_Signal.c:11:9:oThreashold	24	static
+../OneLibrary/Src/ONE_Signal.c:53:8:oLinear	48	static
+../OneLibrary/Src/ONE_Signal.c:76:6:oBlink	24	static
+../OneLibrary/Src/ONE_Signal.c:120:9:oTrigger	16	static
+../OneLibrary/Src/ONE_Signal.c:143:9:oDebounce	16	static
+../OneLibrary/Src/ONE_Signal.c:177:9:oTrigger_GPIO	32	static
+../OneLibrary/Src/ONE_Signal.c:187:9:oDebounce_GPIO	24	static
+../OneLibrary/Src/ONE_Signal.c:199:6:oBlink_GPIO	24	static
+../OneLibrary/Src/ONE_Signal.c:213:9:oDelay_Rising	16	static
+../OneLibrary/Src/ONE_Signal.c:234:9:oDelay_Falling	16	static
+../OneLibrary/Src/ONE_Signal.c:255:9:oDelay_AutoOff	16	static

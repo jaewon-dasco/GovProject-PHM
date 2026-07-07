@@ -1,0 +1,5 @@
+../OneLibrary/Src/ONE_Memory.c:8:11:oMEM_IsAllZero	24	static
+../OneLibrary/Src/ONE_Memory.c:27:6:oMEM_ChangeByteOrder	24	static
+../OneLibrary/Src/ONE_Memory.c:45:9:oMEM_CRC8	32	static
+../OneLibrary/Src/ONE_Memory.c:64:10:oMEM_CRC16	32	static
+../OneLibrary/Src/ONE_Memory.c:84:10:oMEM_CRC32	32	static

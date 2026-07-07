@@ -1,0 +1,5 @@
+../oThirdParty/Src/EEPROM_24LC.c:20:13:EEPROM_24LC_WP_Set	4
+../oThirdParty/Src/EEPROM_24LC.c:27:11:EEPROM_24LC_Init	3
+../oThirdParty/Src/EEPROM_24LC.c:44:11:EEPROM_24LC_DeInit	2
+../oThirdParty/Src/EEPROM_24LC.c:57:11:EEPROM_24LC_Read	14
+../oThirdParty/Src/EEPROM_24LC.c:112:11:EEPROM_24LC_Write	17

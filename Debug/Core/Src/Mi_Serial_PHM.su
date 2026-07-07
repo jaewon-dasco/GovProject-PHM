@@ -1,0 +1,7 @@
+../Core/Src/Mi_Serial_PHM.c:44:6:MiSerial	1016	static
+../Core/Src/Mi_Serial_PHM.c:83:6:MiSerial_Process	4	static
+../Core/Src/Mi_Serial_PHM.c:87:11:MiSerial_Specific	16	static
+../Core/Src/Mi_Serial_PHM.c:93:6:MiSerial_PrintChannelConfig	16	static
+../Core/Src/Mi_Serial_PHM.c:98:6:MiSerial_PrintSensorData	16	static
+../Core/Src/Mi_Serial_PHM.c:103:11:MiSerial_SetChannelConfig	24	static
+../Core/Src/Mi_Serial_PHM.c:110:6:MiSerial_DebugLog	4	static

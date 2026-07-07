@@ -1,0 +1,10 @@
+../Core/Src/Mi_Measurement.c:148:13:Measurement_ComputeAxisStats	88	static
+../Core/Src/Mi_Measurement.c:234:11:Measurement_Init	24	static
+../Core/Src/Mi_Measurement.c:286:6:Measurement_OnFifoIrq	4	static
+../Core/Src/Mi_Measurement.c:294:20:Measurement_ProcessSample	56	static
+../Core/Src/Mi_Measurement.c:337:13:Measurement_ScanPeak	88	static
+../Core/Src/Mi_Measurement.c:396:13:Measurement_ComputeSnapshot	216	static
+../Core/Src/Mi_Measurement.c:464:13:Measurement_ProcessBatch	32	static
+../Core/Src/Mi_Measurement.c:514:6:Measurement_Process	16	static
+../Core/Src/Mi_Measurement.c:541:11:Measurement_Sensor	24	static
+../Core/Src/Mi_Measurement.c:569:11:Measurement_Supply	16	static

@@ -1,0 +1,11 @@
+../Core/Src/Mi_LoRa.c:47:6:DownlinkCallback	32	static
+../Core/Src/Mi_LoRa.c:89:11:MiLoRa_GenLoRaWANKey	16	static
+../Core/Src/Mi_LoRa.c:122:17:MiLoRa_Encode	48	static
+../Core/Src/Mi_LoRa.c:303:11:MiLoRa_SendMailbox	24	static
+../Core/Src/Mi_LoRa.c:440:11:MiLoRa_TimeSync	32	static
+../Core/Src/Mi_LoRa.c:546:6:MiLoRa_MailBoxTransmitScheduler	8	static
+../Core/Src/Mi_LoRa.c:603:11:MiLoRa_Sleep	24	static
+../Core/Src/Mi_LoRa.c:670:11:MiLoRa_Close	8	static
+../Core/Src/Mi_LoRa.c:709:11:MiLoRa_Open	16	static
+../Core/Src/Mi_LoRa.c:865:6:MiLoRa_Control	8	static
+../Core/Src/Mi_LoRa.c:916:6:MiLoRa	16	static

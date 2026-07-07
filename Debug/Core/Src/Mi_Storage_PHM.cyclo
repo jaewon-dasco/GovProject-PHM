@@ -1,0 +1,7 @@
+../Core/Src/Mi_Storage_PHM.c:47:11:MiStorage_Open	3
+../Core/Src/Mi_Storage_PHM.c:70:11:MiStorage_Close	2
+../Core/Src/Mi_Storage_PHM.c:85:11:MiStorage_ReadIoTParameter	10
+../Core/Src/Mi_Storage_PHM.c:143:11:MiStorage_WriteIoTParameter	6
+../Core/Src/Mi_Storage_PHM.c:189:11:MiStorage_ReadIoTData	1
+../Core/Src/Mi_Storage_PHM.c:195:11:MiStorage_WriteIoTData	1
+../Core/Src/Mi_Storage_PHM.c:207:6:MiStorage	13

@@ -1,0 +1,7 @@
+../Core/Src/Mi_Serial_PHM.c:44:6:MiSerial	6
+../Core/Src/Mi_Serial_PHM.c:83:6:MiSerial_Process	1
+../Core/Src/Mi_Serial_PHM.c:87:11:MiSerial_Specific	1
+../Core/Src/Mi_Serial_PHM.c:93:6:MiSerial_PrintChannelConfig	1
+../Core/Src/Mi_Serial_PHM.c:98:6:MiSerial_PrintSensorData	1
+../Core/Src/Mi_Serial_PHM.c:103:11:MiSerial_SetChannelConfig	1
+../Core/Src/Mi_Serial_PHM.c:110:6:MiSerial_DebugLog	1

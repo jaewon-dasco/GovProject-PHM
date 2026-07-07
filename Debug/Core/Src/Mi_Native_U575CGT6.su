@@ -1,0 +1,12 @@
+../Core/Src/Mi_Native_U575CGT6.c:46:11:Native_FlashReadAddress	56	static
+../Core/Src/Mi_Native_U575CGT6.c:102:11:Native_FlashRead	24	static
+../Core/Src/Mi_Native_U575CGT6.c:124:11:Native_FlashWriteAddress	112	static
+../Core/Src/Mi_Native_U575CGT6.c:218:11:Native_FlashWrite	24	static
+../Core/Src/Mi_Native_U575CGT6.c:239:11:Native_FlashCompare	24	static
+../Core/Src/Mi_Native_U575CGT6.c:263:11:Native_SRAMRead	40	static
+../Core/Src/Mi_Native_U575CGT6.c:296:11:Native_SRAMWrite	40	static
+../Core/Src/Mi_Native_U575CGT6.c:328:11:Native_ADCRead	32	static
+../Core/Src/Mi_Native_U575CGT6.c:467:6:Native_HardFaultCallback	48	static
+../Core/Src/Mi_Native_U575CGT6.c:505:6:Native_WatchDog	16	static
+../Core/Src/Mi_Native_U575CGT6.c:568:6:Native_DisableGPIOs	72	static
+../Core/Src/Mi_Native_U575CGT6.c:636:11:Native_SleepMode	16	static

@@ -1,0 +1,15 @@
+../oThirdParty/Src/ADC_NAU7802.c:11:11:NAU7802_WriteMemory	4
+../oThirdParty/Src/ADC_NAU7802.c:24:11:NAU7802_ReadMemory	4
+../oThirdParty/Src/ADC_NAU7802.c:37:11:NAU7802_ReadBit	3
+../oThirdParty/Src/ADC_NAU7802.c:53:11:NAU7802_WriteBit	3
+../oThirdParty/Src/ADC_NAU7802.c:70:11:NAU7802_ResetBit	5
+../oThirdParty/Src/ADC_NAU7802.c:97:11:NAU7802_SetVLDO	11
+../oThirdParty/Src/ADC_NAU7802.c:154:11:NAU7802_SetGain	17
+../oThirdParty/Src/ADC_NAU7802.c:207:11:NAU7802_SetSampling	5
+../oThirdParty/Src/ADC_NAU7802.c:239:11:NAU7802_Init	39
+../oThirdParty/Src/ADC_NAU7802.c:380:11:NAU7802_DeInit	3
+../oThirdParty/Src/ADC_NAU7802.c:405:11:NAU7802_IsDataReady	4
+../oThirdParty/Src/ADC_NAU7802.c:424:11:NAU7802_ConversionStop	1
+../oThirdParty/Src/ADC_NAU7802.c:435:11:NAU7802_ADCRead	20
+../oThirdParty/Src/ADC_NAU7802.c:526:11:NAU7802_AnalogRead	9
+../oThirdParty/Src/ADC_NAU7802.c:555:11:NAU7802_AnalogOverSampling	10

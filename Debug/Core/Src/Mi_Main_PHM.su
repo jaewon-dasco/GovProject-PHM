@@ -1,0 +1,6 @@
+../Core/Src/Mi_Main_PHM.c:35:11:MiMain_GPIOControl	16	static
+../Core/Src/Mi_Main_PHM.c:59:6:MiMain_GPIODeInit	32	static
+../Core/Src/Mi_Main_PHM.c:82:6:MiMain_GPIOInit	40	static
+../Core/Src/Mi_Main_PHM.c:132:11:MiMain_UpdateMeasure	24	static
+../Core/Src/Mi_Main_PHM.c:178:11:MiMain_UpdateStatus	16	static
+../Core/Src/Mi_Main_PHM.c:191:6:MiMain	8	static

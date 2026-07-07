@@ -1,0 +1,16 @@
+../OneLibrary/Src/ONE_Serial.c:25:6:oSerial_RxCpltCallback	24	static
+../OneLibrary/Src/ONE_Serial.c:34:6:oSerial_TxCpltCallback	24	static
+../OneLibrary/Src/ONE_Serial.c:66:18:oSerial_TransmitBuffer	24	static
+../OneLibrary/Src/ONE_Serial.c:106:6:oSerial_ErrorCallback	24	static
+../OneLibrary/Src/ONE_Serial.c:119:6:oSerial_ResetRegister	24	static
+../OneLibrary/Src/ONE_Serial.c:142:6:oSerial_SetRegister	24	static
+../OneLibrary/Src/ONE_Serial.c:165:11:oSerial_Write	48	static,ignoring_inline_asm
+../OneLibrary/Src/ONE_Serial.c:247:11:oSerial_Read	32	static
+../OneLibrary/Src/ONE_Serial.c:333:11:oSerial_ReadSplit	40	static
+../OneLibrary/Src/ONE_Serial.c:455:11:oSerial_ReadLine	24	static
+../OneLibrary/Src/ONE_Serial.c:460:6:oSerial_PutChar	16	static
+../OneLibrary/Src/ONE_Serial.c:474:6:oSerial_vPrint	288	static
+../OneLibrary/Src/ONE_Serial.c:489:6:oSerial_Printf	28	static
+../OneLibrary/Src/ONE_Serial.c:503:6:oSerial_PrintLine	292	static
+../OneLibrary/Src/ONE_Serial.c:530:6:oSerial_LogEnagle	16	static
+../OneLibrary/Src/ONE_Serial.c:540:6:oSerial_Log	292	static

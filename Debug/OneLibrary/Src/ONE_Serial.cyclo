@@ -1,0 +1,16 @@
+../OneLibrary/Src/ONE_Serial.c:25:6:oSerial_RxCpltCallback	5
+../OneLibrary/Src/ONE_Serial.c:34:6:oSerial_TxCpltCallback	5
+../OneLibrary/Src/ONE_Serial.c:66:18:oSerial_TransmitBuffer	6
+../OneLibrary/Src/ONE_Serial.c:106:6:oSerial_ErrorCallback	5
+../OneLibrary/Src/ONE_Serial.c:119:6:oSerial_ResetRegister	4
+../OneLibrary/Src/ONE_Serial.c:142:6:oSerial_SetRegister	7
+../OneLibrary/Src/ONE_Serial.c:165:11:oSerial_Write	22
+../OneLibrary/Src/ONE_Serial.c:247:11:oSerial_Read	21
+../OneLibrary/Src/ONE_Serial.c:333:11:oSerial_ReadSplit	28
+../OneLibrary/Src/ONE_Serial.c:455:11:oSerial_ReadLine	1
+../OneLibrary/Src/ONE_Serial.c:460:6:oSerial_PutChar	5
+../OneLibrary/Src/ONE_Serial.c:474:6:oSerial_vPrint	5
+../OneLibrary/Src/ONE_Serial.c:489:6:oSerial_Printf	3
+../OneLibrary/Src/ONE_Serial.c:503:6:oSerial_PrintLine	7
+../OneLibrary/Src/ONE_Serial.c:530:6:oSerial_LogEnagle	4
+../OneLibrary/Src/ONE_Serial.c:540:6:oSerial_Log	9

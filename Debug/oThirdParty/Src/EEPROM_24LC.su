@@ -1,0 +1,5 @@
+../oThirdParty/Src/EEPROM_24LC.c:20:13:EEPROM_24LC_WP_Set	16	static
+../oThirdParty/Src/EEPROM_24LC.c:27:11:EEPROM_24LC_Init	24	static
+../oThirdParty/Src/EEPROM_24LC.c:44:11:EEPROM_24LC_DeInit	16	static
+../oThirdParty/Src/EEPROM_24LC.c:57:11:EEPROM_24LC_Read	56	static
+../oThirdParty/Src/EEPROM_24LC.c:112:11:EEPROM_24LC_Write	64	static

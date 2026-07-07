@@ -1,0 +1,2 @@
+../Core/Src/Mi_IoT_PHM.c:26:11:MiIoT_IsValidParameter	6
+../Core/Src/Mi_IoT_PHM.c:50:11:MiIoT_IsSensorData	5

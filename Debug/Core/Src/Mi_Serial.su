@@ -1,0 +1,6 @@
+../Core/Src/Mi_Serial.c:24:7:MiSerial_LoraStateString	16	static
+../Core/Src/Mi_Serial.c:74:6:MiSerial_PrintResponse	16	static
+../Core/Src/Mi_Serial.c:87:11:MiSerial_Set	208	static
+../Core/Src/Mi_Serial.c:331:11:MiSerial_Get	560	static
+../Core/Src/Mi_Serial.c:516:11:MiSerial_DebugMessage	16	static
+../Core/Src/Mi_Serial.c:533:13:MiSerial	1016	static
